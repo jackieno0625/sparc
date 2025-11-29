@@ -1030,7 +1030,7 @@ with tab_main:
                 gr_df_display["Total revenue ($)"] = gr_df_display["total_revenue"].map(lambda x: f"${x:,.2f}")
                 gr_df_display = gr_df_display.rename(columns={"name":"Group", "population":"Population"})
                 st.markdown("### Revenue by group")
-                st.dataframe(gr_df_display[["Group","Population","Total revenue ($)"]], use_container_width=True)
+                st.dataframe(gr_df_display[["Group","Population","Total revenue ($)"]], width=True)
 
                 # small bar chart if plotly available
                 try:
@@ -1039,7 +1039,7 @@ with tab_main:
                                  labels={"name":"Group","total_revenue":"Total Revenue ($)"},
                                  title="Total Revenue by Group")
                     fig.update_traces(texttemplate="$%{y:,.0f}", textposition="outside")
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width=True)
                 except Exception:
                     pass
 
