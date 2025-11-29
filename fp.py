@@ -308,12 +308,12 @@ with tab_main:
         if pop_mode == "Simple":
             st.markdown("#### Patient Population Size")
 
+            st.session_state.setdefault("simple_population", 0)
             simple_population = st.number_input(
                 "Enter patient population:",
                 min_value=0,
                 step=1,
-                value=0,
-                key="simple_population",   # <-- add this
+                key="simple_population",
                 help="Type the total number of patients you want to model."
             )
 
@@ -322,16 +322,22 @@ with tab_main:
             st.markdown("#### Insurer Mix")
             insurers = ["Uninsured", "Medicaid", "Healthy Blue", "Trillium", "Aetna", "Medicare", "MEDCOST"]
 
-            # Initialize session_state keys before creating widgets
+            # safe initialization — run BEFORE creating the widgets:
             for name in insurers:
                 key = f"pct_{name}"
-                if key not in st.session_state:
-                    st.session_state[key] = 0.0
+                st.session_state.setdefault(key, 0.0)
 
-            # Render insurer inputs as a single vertical list to avoid crowding
+            # create widgets — DO NOT pass `value=...`, let the widget read initial value from session_state via `key`
             for name in insurers:
                 key = f"pct_{name}"
-                st.number_input(f"{name} (%)", min_value=0.0, max_value=100.0, step=0.5, value=float(st.session_state[key]), key=key, help="Enter insurer percentages for the population. They must total 100%.")
+                st.number_input(
+                    f"{name} (%)",
+                    min_value=0.0,
+                    max_value=100.0,
+                    step=0.5,
+                    key=key,
+                    help="Enter insurer percentages for the population. They must total 100%."
+                )
 
             # Compute and show total
             pct_values = np.array([st.session_state[f"pct_{name}"] for name in insurers], dtype=float)
@@ -349,13 +355,16 @@ with tab_main:
                            + " — " 
                            + reim_df.get("Description", "").astype(str))
             # Use multiselect (user should pick up to 4)
+            # ensure session key exists before creating the multiselect
+            st.session_state.setdefault("selected_cpts", [])
+
             selected = st.multiselect(
                 "Select up to 4 CPT codes (these will be applied to every patient)",
                 options=cpt_display.tolist(),
-                default=[],
                 key="selected_cpts",
                 help="Search CPTs by code or description. Pick up to 4."
             )
+
 
             # Enforce maximum of 4 choices (inform the user)
             if len(selected) > 4:
@@ -374,15 +383,19 @@ with tab_main:
                 
                 # Slider: what % of the shortfall patients pay (0-100%)
                 st.markdown("#### Reimbursement via Patients")
+
+                # ensure key exists before widget
+                st.session_state.setdefault("pct_patient_share", 0)
+
                 pct_patient_share = st.slider(
                     "Patient pays what percent of the shortfall after insurance reimburses? (X%)",
                     min_value=0,
                     max_value=100,
-                    value=0,
                     step=1,
                     key="pct_patient_share",
                     help="If insurer pays less than the practice fee, patient covers X% of that gap."
-                ) / 100.0  # convert to fraction
+                ) / 100.0
+
 
                 # Build payer list consistent with insurer mix inputs
                 # Make sure this list matches the names you used for payer inputs earlier
