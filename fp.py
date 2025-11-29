@@ -291,7 +291,7 @@ with tab_instructions:
 # Main Tab
 # -----------------------
 with tab_main:
-
+    st.markdown("Open the sidebar on the left to toggle between Simple and Advanced modeling options.")
     # Two-column layout with a thin divider
     col1, divider, col2 = st.columns([0.6, 0.02, 0.38])
 
