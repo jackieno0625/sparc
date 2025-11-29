@@ -755,6 +755,14 @@ with tab_main:
             if "fixed_new_amount" not in st.session_state:
                 st.session_state["fixed_new_amount"] = 0.0
 
+            st.number_input(
+                "New fixed cost annual amount ($)",
+                min_value=0.0,
+                step=100.0,
+                key="fixed_new_amount"         # no `value=` — widget reads initial value from session_state
+            )
+
+
             # Callback to add a fixed item (safe)
             def add_fixed_item():
                 name = st.session_state.get("fixed_new_name", "").strip()
@@ -770,7 +778,6 @@ with tab_main:
 
             # Widgets for adding a fixed-cost item
             st.text_input("New fixed cost name", key="fixed_new_name")
-            st.number_input("New fixed cost annual amount ($)", min_value=0.0, value=0.0, step=100.0, key="fixed_new_amount")
             st.button("Add fixed cost item", on_click=add_fixed_item)
 
             # Show any add warning set by callback
