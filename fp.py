@@ -1037,7 +1037,7 @@ with tab_main:
                 gr_df_display["Total revenue ($)"] = gr_df_display["total_revenue"].map(lambda x: f"${x:,.2f}")
                 gr_df_display = gr_df_display.rename(columns={"name":"Group", "population":"Population"})
                 st.markdown("### Revenue by group")
-                st.dataframe(gr_df_display[["Group","Population","Total revenue ($)"]], width=True)
+                st.dataframe(gr_df_display[["Group","Population","Total revenue ($)"]], width=True, height=260)
 
                 # small bar chart if plotly available
                 try:
