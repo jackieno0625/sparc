@@ -320,7 +320,7 @@ with tab_main:
             st.write("You entered:", simple_population)
 
             st.markdown("#### Insurer Mix")
-            insurers = ["Uninsured", "Medicaid", "Healthy Blue", "Trillium", "Aetna", "Medicare", "MEDCOST"]
+            insurers = ["Uninsured", "Medicaid", "Healthy Blue", "Trillium", "Aetna", "Medicare"]
 
             # safe initialization — run BEFORE creating the widgets:
             for name in insurers:
@@ -526,7 +526,7 @@ with tab_main:
             # -----------------------
 
             # default payer list (matches your UI)
-            INSURERS = ["Uninsured", "Medicaid", "Healthy Blue", "Trillium", "Aetna", "Medicare", "MEDCOST"]
+            INSURERS = ["Uninsured", "Medicaid", "Healthy Blue", "Trillium", "Aetna", "Medicare"]
 
             # initialize groups container in session_state
             if "service_groups" not in st.session_state:
@@ -716,32 +716,6 @@ with tab_main:
                         "per_patient_rev": per_patient,
                         "total_revenue": total_revenue_grp
                     })
-
-            # After all groups: show aggregated summary table
-            if not group_summaries:
-                st.info("No service groups configured.")
-            else:
-                summary_df = pd.DataFrame(group_summaries)
-                # format
-                summary_df_display = summary_df.copy()
-                summary_df_display["per_patient_rev"] = summary_df_display["per_patient_rev"].map(lambda x: f"${x:,.2f}")
-                summary_df_display["total_revenue"] = summary_df_display["total_revenue"].map(lambda x: f"${x:,.2f}")
-                summary_df_display = summary_df_display.rename(columns={
-                    "name": "Group",
-                    "population": "Population",
-                    "per_patient_rev": "Per-patient revenue",
-                    "total_revenue": "Total revenue"
-                })
-                st.markdown("### Group summary")
-                st.dataframe(summary_df_display[["Group", "Population", "Per-patient revenue", "Total revenue"]], use_container_width=True)
-
-                # show stacked bar or simple bar of total revenue by group
-                rev_plot_df = pd.DataFrame(group_summaries)
-                if rev_plot_df["total_revenue"].sum() > 0:
-                    fig = px.bar(rev_plot_df, x="name", y="total_revenue", labels={"name": "Group", "total_revenue": "Total Revenue ($)"}, title="Total Revenue by Group")
-                    fig.update_traces(texttemplate="$%{y:,.0f}", textposition="outside")
-                    fig.update_layout(yaxis_tickprefix="$", uniformtext_minsize=8, uniformtext_mode='hide')
-                    st.plotly_chart(fig, use_container_width=True)
 
 
 
@@ -980,7 +954,7 @@ with tab_main:
         total_cost_value = _to_float_safe(st.session_state.get("simple_net_cost", 0.0), 0.0)
 
     # --- canonical insurers list used in payer widgets ---
-    INSURERS = ["Uninsured", "Medicaid", "Healthy Blue", "Trillium", "Aetna", "Medicare", "MEDCOST"]
+    INSURERS = ["Uninsured", "Medicaid", "Healthy Blue", "Trillium", "Aetna", "Medicare"]
 
     # --- Compute total revenue depending on population mode ---
     grand_total_revenue = 0.0
