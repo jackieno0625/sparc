@@ -1056,13 +1056,14 @@ with tabs[0]:
 
 
 with tabs[2]:
-    st.header("Guided Example — Step-by-Step Walkthrough")
+    st.header("Guided Examples: Step-by-Step Walkthrough")
 
     st.write(
         """
-        Below is a guided, hands-on walkthrough that teaches you *how to use SPARC* by walking
-        through two versions of the same scenario. You will learn where each input lives, how the
-        cost models differ, and how to interpret SPARC’s outputs.
+        This walkthrough teaches you how to use SPARC by walking through **two versions** of the same
+        scenario. The simple version shows a single bundled population. The advanced version shows
+        SPARC’s ability to model **multiple patient groups**, each with different CPT services,
+        AND use advanced cost modeling.
         """
     )
 
@@ -1073,22 +1074,22 @@ with tabs[2]:
 
     st.markdown(
         """
-        A mid-sized primary-care clinic is considering launching a structured chronic-care follow-up
-        program for a subset of patients with hypertension, diabetes, and metabolic risk factors.
-        To evaluate financial feasibility, the clinic wants to model a 100-patient pilot where each
-        participant receives a bundle of five CPT-coded services.
+        A primary-care clinic is considering launching a structured chronic care follow-up
+        program for a subset of patients with hypertension, diabetes, and cardiometabolic risks.
+        Administration wants to model the financial impact of the pilot using two approaches:
 
-        You will walk through this same clinical scenario **twice**:
+        **1. A simple, uniform pilot population (100 patients receiving the same CPT bundle)**  
+        **2. A more realistic model with multiple patient groups who receive different services**  
 
-        - First, using the **Simple Cost Model**, where you manually enter one total cost number  
-        - Then, using the **Advanced Cost Model**, where SPARC computes total cost for you
+        By completing both walkthroughs, users learn every major feature of SPARC, including  
+        **population modeling**, **CPT selection**, **insurance mix entry**, and **both cost modes**.
         """
     )
 
     st.markdown("---")
 
     # ---------------------------------------------------------------
-    # Tabs for Simple Mode Walkthrough vs Advanced Mode Walkthrough
+    # Tabs for Simple vs Advanced Walkthroughs
     # ---------------------------------------------------------------
     guide_tabs = st.tabs([
         "Simple Mode Walkthrough",
@@ -1099,182 +1100,189 @@ with tabs[2]:
     # SIMPLE MODE TAB
     # ---------------------------------------------------------------
     with guide_tabs[0]:
-        st.subheader("🟦 Part 1 — Simple Cost Model Walkthrough")
+        st.subheader("🟦 Part 1 — Simple Population + Simple Cost Walkthrough")
 
         st.markdown(
             """
-            This section teaches you how to complete a basic SPARC model using the **Simple** cost
-            mode. You’ll enter all required inputs manually and see how SPARC calculates revenue
-            and profitability.
+            This walkthrough teaches you how to complete a SPARC model using the **Simple population
+            model** paired with the **Simple Cost Mode**.
             """
         )
 
-        st.markdown("### **Step 1 — Enter the patient population**")
+        st.markdown("### **Step 1: Enter the patient population**")
         st.markdown(
             """
-            In the sidebar, set:  
+            Under **Population Settings**, type in:  
             **• Number of patients = 100**
+            Then, hit enter.
             """
         )
 
-        st.markdown("### **Step 2 — Select exactly 5 CPT codes**")
+        st.markdown("### **Step 2: Select 5 CPT codes**")
         st.markdown(
             """
-            Choose the following five CPT codes in the sidebar dropdown:
+            For this simple model, all patients receive the same 5 services. Select:
             - **99213** — Established patient visit  
             - **99214** — Moderate complexity follow-up  
             - **99441** — Telephone evaluation  
             - **81002** — Urinalysis  
-            - **99441** — (enter again; treat as a second telehealth touchpoint)
-
-            *SPARC requires exactly 5 CPTs. You may repeat codes when clinically appropriate.*
+            - **99441** — (second telehealth interaction)
+            You can also type these CPT codes in the dropdown to find them faster.
+            """
+        )
+        
+        st.markdown("### **Step 3: Toggle the Patient Reimbursement % Bar**")
+        st.markdown(
+            """
+            This sliding bar represents how much the patients can reimburse of the difference after insurance reimburses.
+            For example, if patients will pay 90% of the difference, you can slide the circle to 90.
             """
         )
 
-        st.markdown("### **Step 3 — Enter the insurance mix**")
+        st.markdown("### **Step 4: Enter the insurance mix**")
         st.markdown(
             """
-            Enter the following payer distribution (must sum to **100%**):
-            - Medicaid: **40%**  
-            - Medicare: **30%**  
-            - Blue Shield: **20%**  
+            Enter the following percentages (must sum to **100%**):
+            - Medicaid: **50%**  
+            - Medicare: **40%**  
             - Self-Pay: **10%**
             """
         )
 
-        st.markdown("### **Step 4 — Switch to the Simple Cost Model**")
+        st.markdown("### **Step 5: Switch to the Simple Cost Model**")
         st.markdown(
             """
-            Select **Simple** in the cost model section.  
-            Then enter:
+            Select **Simple** in the cost section and enter:
             - **Total Gross Cost = $25,000**
-
-            This represents all staffing, overhead, and administrative costs for the pilot.
             """
         )
 
-        st.markdown("### **Step 5 — Run the model**")
-        st.markdown(
-            """
-            Click **Run Model** to generate:
-            - Revenue per patient  
-            - Total revenue  
-            - Gross cost  
-            - Net profit  
-            - Profit margin (%)  
-            - CPT-level weighted reimbursement  
-            """
-        )
-
-        st.markdown("### **Step 6 — Interpret the results**")
-        st.markdown(
-            """
-            Review the cards at the top:
-            - Is **Net Profit** positive?  
-            - Is the **Profit Margin** acceptable?
-
-            Then scroll to:
-            - The CPT table (which CPT contributes the highest reimbursement)
-            - The charts (insurance mix and reimbursement per CPT)
-            """
-        )
+        st.markdown("### **Step 6: Run the model & interpret results**")
 
     # ---------------------------------------------------------------
-    # ADVANCED MODE TAB
+    # ADVANCED MODE TAB — WITH ADVANCED POPULATION MODELING
     # ---------------------------------------------------------------
     with guide_tabs[1]:
-        st.subheader("🟩 Part 2 — Advanced Cost Model Walkthrough")
+        st.subheader("🟩 Part 2 — Advanced Population + Advanced Cost Walkthrough")
 
         st.markdown(
             """
-            This section teaches you how to use SPARC’s **Advanced** (Calculated) cost mode.  
-            You’ll break down provider time, salaries, and other operating costs so SPARC can compute
-            the gross cost automatically.
+            This walkthrough teaches you how to complete a SPARC model using the **Advanced population
+            model** paired with the **Advanced Cost Mode**.
+
+            Instead of modeling one homogeneous group, SPARC can model **multiple patient cohorts**,
+            each receiving different services.
+
+            For this exercise, you will enter **three sub-populations**, each with a different CPT
+            bundle and insurance mix weighting.
             """
         )
 
-        st.markdown("### **Step 1 — Use the same patient population**")
+        # ---------------------------------------------------------------
+        # Advanced Population Instructions
+        # ---------------------------------------------------------------
+        st.markdown("### **Step 1: Add multiple patient groups**")
         st.markdown(
             """
-            In the sidebar, enter:  
-            **• Number of patients = 100**
+            Under **Population Modeling** in the sidebar, switch to **Advanced**.
+
+            You will now create **three sub-populations**. 
+            You can change the name of any prexisting group by typing in a new name and hitting enter.:
+
+            #### 🧩 Sub-Population A — Standard Chronic Care  
+            - Number of patients: **120**  
+            - CPT codes (pick these 3):  
+              - 99213  
+              - 99441  
+              - 81002  
+
+            #### 🧩 Sub-Population B — Higher-Acuity Patients  
+            - Number of patients: **60**  
+            - CPT codes (pick these 3): 
+              - 99214  
+              - 99214  
+              - 99441  
+
+            #### 🧩 Sub-Population C — New-Patient Evaluations  
+            - Number of patients: **20**  
+            - CPT codes (pick these 2): 
+              - 99203  
+              - 99213 
+
+            Total pilot population = **200 patients**.
             """
         )
-
-        st.markdown("### **Step 2 — Use the same five CPT codes**")
+       
+        st.markdown("### **Step 2: Toggle the Patient Reimbursement % Bar**")
         st.markdown(
             """
-            Select:
-            - **99213**  
-            - **99214**  
-            - **99441**  
-            - **81002**  
-            - **99441** (second telehealth contact)
+            This sliding bar represents how much the patients can reimburse of the difference after insurance reimburses.
+            For example, if patients will pay 90% of the difference, you can slide the circle to 90.
             """
         )
-
-        st.markdown("### **Step 3 — Use the same insurance mix**")
+        # ---------------------------------------------------------------
+        # Insurance Mix (same across subgroups for simplicity)
+        # ---------------------------------------------------------------
+        st.markdown("### **Step 4: Enter the insurance mix**")
         st.markdown(
             """
-            Keep the same payer split:
-            - Medicaid: **40%**  
-            - Medicare: **30%**  
-            - Blue Shield: **20%**  
+            For this scenario, all subgroups have the same insurance mix.
+            
+            Enter the following percentages for each subgroup(must sum to **100%**):
+            - Medicaid: **50%**  
+            - Medicare: **40%**  
             - Self-Pay: **10%**
             """
         )
-
-        st.markdown("### **Step 4 — Switch to the Advanced Cost Model**")
+        # ---------------------------------------------------------------
+        # Cost Model
+        # ---------------------------------------------------------------
+        st.markdown("### **Step 5: Switch to the Advanced Cost Model**")
         st.markdown(
             """
-            Select **Calculated (Advanced)** in the cost model section.  
-            Then enter the following staffing and cost assumptions:
+            Under **Cost Modeling** in the sidebar, switch to **Advanced**.
 
-            - **Number of providers:** 3  
-            - **Hourly rate per provider:** $90  
-            - **Hours per week:** 36  
-            - **Weeks per year worked:** 46  
-            - **Other annual costs:** $40,000  
-            
-            SPARC will automatically compute the full gross cost for the program.
+            Enter the Provider Payroll:
+            - **Number of providers:** 4  
+            - **Hourly rate:** $95  
+            - **Hours per week:** 34  
+            - **Weeks per year:** 46  
+
+            Enter Fixed Costs:
+            - **Water Bill:** $1000
+
+            SPARC computes total gross cost for the full 200-patient model.
             """
         )
 
-        st.markdown("### **Step 5 — Run the model**")
+        # ---------------------------------------------------------------
+        # Running the model
+        # ---------------------------------------------------------------
+        st.markdown("### **Step 4 — Run the model & evaluate outputs**")
         st.markdown(
             """
-            When you click **Run Model**, compare these results to the Simple version:
-            - Total Revenue stays the same (because CPTs and payers are unchanged)
-            - **Gross Cost** is now *calculated*, not manually entered  
-            - Net Profit and Margin may shift significantly
+            The model will run automatically. From the outputs, you can evaluate:
+
+            #### 🧮 Financial Summary 
+            - Total reimbursement  
+            - Total cost
+            - Net profit 
+
+            #### 🧩 Sub-population performance bar graph
+            - Which subgroup drives most revenue?  
+            - Do higher-acuity groups create higher reimbursement?  
+
+            #### 💡 CPT-Level Detail
+            - Compare reimbursement across 99213, 99214, 99203, 99441, and 81002  
+            - Identify high-value vs low-value services  
             """
         )
 
-        st.markdown("### **Step 6 — Explore the results**")
-        st.markdown(
-            """
-            Review:
-            - Weighted reimbursement per CPT  
-            - Which insurer(s) drive the most revenue  
-            - Whether net profit remains positive  
-            """
-        )
-
-        st.markdown("### **Optional Sensitivity Exercises**")
-        st.markdown(
-            """
-            Encourage users to try:
-            1. Increasing hourly rate from $90 → $110  
-            2. Increasing Medicaid share (e.g., 40% → 50%)  
-            3. Removing one CPT and replacing it with another  
-            4. Changing number of patients to see scalability  
-            """
-        )
 
     st.markdown("---")
     st.caption(
-        "This walkthrough is designed to give new users confidence in entering inputs, interpreting results, "
-        "and experimenting with SPARC’s modeling capabilities."
+        "This walkthrough teaches users how to model single and multi-group populations, switch "
+        "between cost modes, and interpret SPARC’s financial outputs."
     )
 
 
