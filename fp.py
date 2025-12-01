@@ -1268,7 +1268,7 @@ with tabs[2]:
             - Total cost
             - Net profit 
 
-            #### 🧩 Sub-population performance bar graph
+            #### 📊 Sub-population performance bar graph
             - Which subgroup drives most revenue?  
             - Do higher-acuity groups create higher reimbursement?  
 
@@ -1278,12 +1278,6 @@ with tabs[2]:
             """
         )
 
-
-    st.markdown("---")
-    st.caption(
-        "This walkthrough teaches users how to model single and multi-group populations, switch "
-        "between cost modes, and interpret SPARC’s financial outputs."
-    )
 
 
 # -----------------------
