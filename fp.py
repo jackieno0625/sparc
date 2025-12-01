@@ -7,12 +7,11 @@ import io
 import uuid
 import plotly.express as px
 import pkgutil
+import textwrap
 
 # -------------------------
 # CSV Loader
 # -------------------------
-
-
 CSV_FILENAME = "Compiled Fee Assessment.csv"
 CSV_PATH = Path(__file__).parent / CSV_FILENAME
 
@@ -85,12 +84,12 @@ cost_mode = st.sidebar.radio("Total Cost Mode", options=["Simple", "Advanced"], 
 # -----------------------
 # Tabs at the top
 # -----------------------
-tab_main, tab_instructions = st.tabs(["Main", "Instructions"])
+tabs = st.tabs(["Main Dashboard", "Instructions", "Guided Examples"])
 
 # -----------------------
 # Instructions Tab
 # -----------------------
-with tab_instructions:
+with tabs[1]:
     st.subheader("Instructions")
     st.markdown(
         """
@@ -290,7 +289,7 @@ with tab_instructions:
 # -----------------------
 # Main Tab
 # -----------------------
-with tab_main:
+with tabs[0]:
     st.markdown("Open the sidebar on the left to toggle between Simple and Advanced modeling options.")
     # Two-column layout with a thin divider
     col1, divider, col2 = st.columns([0.6, 0.02, 0.38])
@@ -1056,7 +1055,227 @@ with tab_main:
             st.markdown(f"## Final Net profit: **${(grand_total_revenue - total_cost_value):,.2f}**")
 
 
+with tabs[2]:
+    st.header("Guided Example — Step-by-Step Walkthrough")
 
+    st.write(
+        """
+        Below is a guided, hands-on walkthrough that teaches you *how to use SPARC* by walking
+        through two versions of the same scenario. You will learn where each input lives, how the
+        cost models differ, and how to interpret SPARC’s outputs.
+        """
+    )
+
+    # ---------------------------------------------------------------
+    # Scenario Context (fake blurb)
+    # ---------------------------------------------------------------
+    st.subheader("📘 Scenario Context")
+
+    st.markdown(
+        """
+        A mid-sized primary-care clinic is considering launching a structured chronic-care follow-up
+        program for a subset of patients with hypertension, diabetes, and metabolic risk factors.
+        To evaluate financial feasibility, the clinic wants to model a 100-patient pilot where each
+        participant receives a bundle of five CPT-coded services.
+
+        You will walk through this same clinical scenario **twice**:
+
+        - First, using the **Simple Cost Model**, where you manually enter one total cost number  
+        - Then, using the **Advanced Cost Model**, where SPARC computes total cost for you
+        """
+    )
+
+    st.markdown("---")
+
+    # ---------------------------------------------------------------
+    # Tabs for Simple Mode Walkthrough vs Advanced Mode Walkthrough
+    # ---------------------------------------------------------------
+    guide_tabs = st.tabs([
+        "Simple Mode Walkthrough",
+        "Advanced Mode Walkthrough"
+    ])
+
+    # ---------------------------------------------------------------
+    # SIMPLE MODE TAB
+    # ---------------------------------------------------------------
+    with guide_tabs[0]:
+        st.subheader("🟦 Part 1 — Simple Cost Model Walkthrough")
+
+        st.markdown(
+            """
+            This section teaches you how to complete a basic SPARC model using the **Simple** cost
+            mode. You’ll enter all required inputs manually and see how SPARC calculates revenue
+            and profitability.
+            """
+        )
+
+        st.markdown("### **Step 1 — Enter the patient population**")
+        st.markdown(
+            """
+            In the sidebar, set:  
+            **• Number of patients = 100**
+            """
+        )
+
+        st.markdown("### **Step 2 — Select exactly 5 CPT codes**")
+        st.markdown(
+            """
+            Choose the following five CPT codes in the sidebar dropdown:
+            - **99213** — Established patient visit  
+            - **99214** — Moderate complexity follow-up  
+            - **99441** — Telephone evaluation  
+            - **81002** — Urinalysis  
+            - **99441** — (enter again; treat as a second telehealth touchpoint)
+
+            *SPARC requires exactly 5 CPTs. You may repeat codes when clinically appropriate.*
+            """
+        )
+
+        st.markdown("### **Step 3 — Enter the insurance mix**")
+        st.markdown(
+            """
+            Enter the following payer distribution (must sum to **100%**):
+            - Medicaid: **40%**  
+            - Medicare: **30%**  
+            - Blue Shield: **20%**  
+            - Self-Pay: **10%**
+            """
+        )
+
+        st.markdown("### **Step 4 — Switch to the Simple Cost Model**")
+        st.markdown(
+            """
+            Select **Simple** in the cost model section.  
+            Then enter:
+            - **Total Gross Cost = $25,000**
+
+            This represents all staffing, overhead, and administrative costs for the pilot.
+            """
+        )
+
+        st.markdown("### **Step 5 — Run the model**")
+        st.markdown(
+            """
+            Click **Run Model** to generate:
+            - Revenue per patient  
+            - Total revenue  
+            - Gross cost  
+            - Net profit  
+            - Profit margin (%)  
+            - CPT-level weighted reimbursement  
+            """
+        )
+
+        st.markdown("### **Step 6 — Interpret the results**")
+        st.markdown(
+            """
+            Review the cards at the top:
+            - Is **Net Profit** positive?  
+            - Is the **Profit Margin** acceptable?
+
+            Then scroll to:
+            - The CPT table (which CPT contributes the highest reimbursement)
+            - The charts (insurance mix and reimbursement per CPT)
+            """
+        )
+
+    # ---------------------------------------------------------------
+    # ADVANCED MODE TAB
+    # ---------------------------------------------------------------
+    with guide_tabs[1]:
+        st.subheader("🟩 Part 2 — Advanced Cost Model Walkthrough")
+
+        st.markdown(
+            """
+            This section teaches you how to use SPARC’s **Advanced** (Calculated) cost mode.  
+            You’ll break down provider time, salaries, and other operating costs so SPARC can compute
+            the gross cost automatically.
+            """
+        )
+
+        st.markdown("### **Step 1 — Use the same patient population**")
+        st.markdown(
+            """
+            In the sidebar, enter:  
+            **• Number of patients = 100**
+            """
+        )
+
+        st.markdown("### **Step 2 — Use the same five CPT codes**")
+        st.markdown(
+            """
+            Select:
+            - **99213**  
+            - **99214**  
+            - **99441**  
+            - **81002**  
+            - **99441** (second telehealth contact)
+            """
+        )
+
+        st.markdown("### **Step 3 — Use the same insurance mix**")
+        st.markdown(
+            """
+            Keep the same payer split:
+            - Medicaid: **40%**  
+            - Medicare: **30%**  
+            - Blue Shield: **20%**  
+            - Self-Pay: **10%**
+            """
+        )
+
+        st.markdown("### **Step 4 — Switch to the Advanced Cost Model**")
+        st.markdown(
+            """
+            Select **Calculated (Advanced)** in the cost model section.  
+            Then enter the following staffing and cost assumptions:
+
+            - **Number of providers:** 3  
+            - **Hourly rate per provider:** $90  
+            - **Hours per week:** 36  
+            - **Weeks per year worked:** 46  
+            - **Other annual costs:** $40,000  
+            
+            SPARC will automatically compute the full gross cost for the program.
+            """
+        )
+
+        st.markdown("### **Step 5 — Run the model**")
+        st.markdown(
+            """
+            When you click **Run Model**, compare these results to the Simple version:
+            - Total Revenue stays the same (because CPTs and payers are unchanged)
+            - **Gross Cost** is now *calculated*, not manually entered  
+            - Net Profit and Margin may shift significantly
+            """
+        )
+
+        st.markdown("### **Step 6 — Explore the results**")
+        st.markdown(
+            """
+            Review:
+            - Weighted reimbursement per CPT  
+            - Which insurer(s) drive the most revenue  
+            - Whether net profit remains positive  
+            """
+        )
+
+        st.markdown("### **Optional Sensitivity Exercises**")
+        st.markdown(
+            """
+            Encourage users to try:
+            1. Increasing hourly rate from $90 → $110  
+            2. Increasing Medicaid share (e.g., 40% → 50%)  
+            3. Removing one CPT and replacing it with another  
+            4. Changing number of patients to see scalability  
+            """
+        )
+
+    st.markdown("---")
+    st.caption(
+        "This walkthrough is designed to give new users confidence in entering inputs, interpreting results, "
+        "and experimenting with SPARC’s modeling capabilities."
+    )
 
 
 # -----------------------
