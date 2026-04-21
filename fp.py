@@ -3,11 +3,13 @@ SPARC — Financial Projection Dashboard
 Streamlit application for clinics and public health programs.
 
 Clean version: duplicates removed, helpers unified, page config moved first,
-callback functions lifted out of render loops, Example Scenario split into its own tab.
+callback functions lifted out of render loops, Example Scenario split into its own tab,
+grant-ready PDF export added.
 """
 
 import io
 import uuid
+from datetime import date
 from pathlib import Path
 
 import numpy as np
@@ -15,6 +17,14 @@ import pandas as pd
 import plotly.express as px
 import pkgutil
 import streamlit as st
+
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+)
 
 # ─────────────────────────────────────────────
 # Page config — MUST be the very first st call
@@ -223,6 +233,261 @@ def cpt_display_to_code(df: pd.DataFrame) -> dict:
         f"{row['CPT Code']} — {row.get('Description', '')}": row["CPT Code"]
         for _, row in df.iterrows()
     }
+
+
+# ─────────────────────────────────────────────
+# PDF Report Generator
+# ─────────────────────────────────────────────
+def generate_grant_pdf(
+    clinic_name: str,
+    pop_mode: str,
+    cost_mode: str,
+    grand_revenue: float,
+    total_cost: float,
+    grand_population: int,
+    payer_mix: dict,           # {payer_name: pct_float}
+    group_rows: list,          # list of {"name", "population", "total_revenue"}
+    scenario_rows: list,       # list of {"Patient Share (%)": str, "Total Revenue ($)": str}
+    fixed_items: list,
+    misc_items: list,
+    provider_info: dict,       # {"num": int, "hours": float, "weeks": int, "hourly": float}
+) -> bytes:
+    """
+    Build a grant-ready financial summary PDF and return it as bytes.
+    """
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=0.9 * inch,
+        rightMargin=0.9 * inch,
+        topMargin=0.9 * inch,
+        bottomMargin=0.9 * inch,
+    )
+
+    base_styles = getSampleStyleSheet()
+    net = grand_revenue - total_cost
+    funding_gap = abs(net) if net < 0 else 0.0
+    report_date = date.today().strftime("%B %d, %Y")
+
+    # ── Custom styles ──────────────────────────
+    dark = colors.HexColor("#1a2b3c")
+    mid  = colors.HexColor("#4a5568")
+    light = colors.HexColor("#718096")
+    accent = colors.HexColor("#2b6cb0")
+    gap_red = colors.HexColor("#c53030")
+    surplus_green = colors.HexColor("#276749")
+    rule_color = colors.HexColor("#cbd5e0")
+
+    def style(name, **kwargs):
+        s = ParagraphStyle(name, parent=base_styles["Normal"], **kwargs)
+        return s
+
+    S = {
+        "org":      style("org",      fontSize=9,  textColor=light, spaceAfter=2),
+        "title":    style("title",    fontSize=20, textColor=dark,  spaceAfter=6,  leading=24, fontName="Helvetica-Bold"),
+        "date":     style("date",     fontSize=9,  textColor=light, spaceAfter=18),
+        "h2":       style("h2",       fontSize=13, textColor=dark,  spaceBefore=14, spaceAfter=6, fontName="Helvetica-Bold"),
+        "h3":       style("h3",       fontSize=11, textColor=mid,   spaceBefore=10, spaceAfter=4, fontName="Helvetica-Bold"),
+        "body":     style("body",     fontSize=10, textColor=mid,   spaceAfter=4,  leading=15),
+        "gap":      style("gap",      fontSize=14, textColor=gap_red,   spaceAfter=4, fontName="Helvetica-Bold"),
+        "surplus":  style("surplus",  fontSize=14, textColor=surplus_green, spaceAfter=4, fontName="Helvetica-Bold"),
+        "caption":  style("caption",  fontSize=8,  textColor=light, spaceAfter=10, leading=12),
+        "label":    style("label",    fontSize=9,  textColor=light),
+    }
+
+    def hr():
+        return HRFlowable(width="100%", thickness=0.5, color=rule_color, spaceAfter=10, spaceBefore=6)
+
+    def table_style_base():
+        return TableStyle([
+            ("FONTNAME",    (0, 0), (-1, 0),  "Helvetica-Bold"),
+            ("FONTSIZE",    (0, 0), (-1, -1), 9),
+            ("TEXTCOLOR",   (0, 0), (-1, 0),  dark),
+            ("TEXTCOLOR",   (0, 1), (-1, -1), mid),
+            ("BACKGROUND",  (0, 0), (-1, 0),  colors.HexColor("#edf2f7")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f7fafc")]),
+            ("GRID",        (0, 0), (-1, -1), 0.4, rule_color),
+            ("TOPPADDING",  (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING",(0, 0), (-1, -1), 5),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING",(0, 0), (-1, -1), 8),
+            ("ALIGN",       (1, 0), (-1, -1), "RIGHT"),
+            ("ALIGN",       (0, 0), (0, -1),  "LEFT"),
+        ])
+
+    story = []
+
+    # ── Header ────────────────────────────────
+    if clinic_name.strip():
+        story.append(Paragraph(clinic_name.upper(), S["org"]))
+    story.append(Paragraph("Financial Sustainability Summary", S["title"]))
+    story.append(Paragraph(f"Prepared by SPARC  ·  {report_date}", S["date"]))
+    story.append(hr())
+
+    # ── Executive summary ─────────────────────
+    story.append(Paragraph("Executive Summary", S["h2"]))
+    story.append(Paragraph(
+        f"This report presents a projected annual financial sustainability analysis for "
+        f"{'this organization' if not clinic_name.strip() else clinic_name}. "
+        f"Based on a modeled patient population of <b>{grand_population:,}</b> and the "
+        f"payer mix and service assumptions detailed below, projected annual revenue from "
+        f"insurer reimbursements and patient cost-sharing is estimated at "
+        f"<b>${grand_revenue:,.2f}</b>, against projected annual operating costs of "
+        f"<b>${total_cost:,.2f}</b>.",
+        S["body"]
+    ))
+
+    if net < 0:
+        story.append(Paragraph(
+            f"This results in a projected annual funding gap of <b>${funding_gap:,.2f}</b>. "
+            f"Grant support in this amount would enable the organization to fully cover "
+            f"operating costs and sustain services for the patient population modeled.",
+            S["body"]
+        ))
+        story.append(Spacer(1, 6))
+        story.append(Paragraph(f"Projected Annual Funding Gap: $({funding_gap:,.2f})", S["gap"]))
+    else:
+        story.append(Paragraph(
+            f"This results in a projected annual operating surplus of <b>${net:,.2f}</b>.",
+            S["body"]
+        ))
+        story.append(Spacer(1, 6))
+        story.append(Paragraph(f"Projected Annual Surplus: ${net:,.2f}", S["surplus"]))
+
+    story.append(hr())
+
+    # ── Financial snapshot table ───────────────
+    story.append(Paragraph("Financial Snapshot", S["h2"]))
+    snapshot_data = [
+        ["Metric", "Amount"],
+        ["Projected patient population",          f"{grand_population:,}"],
+        ["Projected annual reimbursement",         f"${grand_revenue:,.2f}"],
+        ["Projected annual operating cost",        f"${total_cost:,.2f}"],
+        ["Net profit / (funding gap)",             f"${net:,.2f}"],
+    ]
+    snap_table = Table(snapshot_data, colWidths=[3.8 * inch, 2.4 * inch])
+    snap_table.setStyle(table_style_base())
+    story.append(snap_table)
+    story.append(Spacer(1, 12))
+
+    # ── Payer mix ─────────────────────────────
+    story.append(hr())
+    story.append(Paragraph("Payer Mix Assumptions", S["h2"]))
+    story.append(Paragraph(
+        "The following insurance payer distribution was applied to the patient population model.",
+        S["body"]
+    ))
+    payer_data = [["Payer", "Share (%)"]]
+    for payer, pct in payer_mix.items():
+        if pct > 0:
+            payer_data.append([payer, f"{pct:.1f}%"])
+    payer_table = Table(payer_data, colWidths=[3.8 * inch, 2.4 * inch])
+    payer_table.setStyle(table_style_base())
+    story.append(payer_table)
+    story.append(Spacer(1, 12))
+
+    # ── Service groups (Advanced mode only) ───
+    if pop_mode == "Advanced" and group_rows:
+        story.append(hr())
+        story.append(Paragraph("Revenue by Service Line", S["h2"]))
+        story.append(Paragraph(
+            "The table below shows the projected annual revenue contribution from each service line.",
+            S["body"]
+        ))
+        group_data = [["Service Line", "Population", "Projected Revenue"]]
+        for g in group_rows:
+            group_data.append([
+                g["name"],
+                f"{g['population']:,}",
+                f"${g['total_revenue']:,.2f}",
+            ])
+        group_data.append(["Total", f"{grand_population:,}", f"${grand_revenue:,.2f}"])
+        grp_table = Table(group_data, colWidths=[2.8 * inch, 1.6 * inch, 1.8 * inch])
+        ts = table_style_base()
+        ts.add("FONTNAME",   (0, len(group_data) - 1), (-1, len(group_data) - 1), "Helvetica-Bold")
+        ts.add("BACKGROUND", (0, len(group_data) - 1), (-1, len(group_data) - 1), colors.HexColor("#edf2f7"))
+        grp_table.setStyle(ts)
+        story.append(grp_table)
+        story.append(Spacer(1, 12))
+
+    # ── Cost breakdown (Advanced mode only) ───
+    if cost_mode == "Advanced":
+        story.append(hr())
+        story.append(Paragraph("Operating Cost Breakdown", S["h2"]))
+
+        if fixed_items:
+            story.append(Paragraph("Fixed Costs", S["h3"]))
+            fixed_data = [["Item", "Annual Cost"]]
+            for item in fixed_items:
+                fixed_data.append([item["item"], f"${item['annual_cost']:,.2f}"])
+            fixed_table = Table(fixed_data, colWidths=[3.8 * inch, 2.4 * inch])
+            fixed_table.setStyle(table_style_base())
+            story.append(fixed_table)
+            story.append(Spacer(1, 8))
+
+        n  = provider_info.get("num", 0)
+        h  = provider_info.get("hours", 0.0)
+        w  = provider_info.get("weeks", 0)
+        hr_pay = provider_info.get("hourly", 0.0)
+        if n > 0:
+            story.append(Paragraph("Provider Payroll", S["h3"]))
+            payroll_total = n * h * w * hr_pay
+            story.append(Paragraph(
+                f"{n} provider(s) x {h:.0f} hrs/week x {w} weeks/year x ${hr_pay:.2f}/hr "
+                f"= <b>${payroll_total:,.2f}</b>",
+                S["body"]
+            ))
+            story.append(Spacer(1, 8))
+
+        if misc_items:
+            story.append(Paragraph("Miscellaneous Costs", S["h3"]))
+            misc_data = [["Item", "Annual Cost"]]
+            for item in misc_items:
+                misc_data.append([item["item"], f"${item['annual_cost']:,.2f}"])
+            misc_table = Table(misc_data, colWidths=[3.8 * inch, 2.4 * inch])
+            misc_table.setStyle(table_style_base())
+            story.append(misc_table)
+            story.append(Spacer(1, 8))
+
+    # ── Scenario analysis ─────────────────────
+    if scenario_rows:
+        story.append(hr())
+        story.append(Paragraph("Scenario Analysis — Patient Cost-Share Sensitivity", S["h2"]))
+        story.append(Paragraph(
+            "The table below illustrates how projected annual revenue changes depending on "
+            "the percentage of the insurer-to-practice-fee shortfall that patients pay "
+            "out of pocket. This sensitivity analysis supports grant applications by "
+            "demonstrating the range of financial outcomes under different access assumptions.",
+            S["body"]
+        ))
+        sc_data = [["Patient Shortfall Share", "Projected Annual Revenue", "Net Profit / (Gap)"]]
+        for row in scenario_rows:
+            rev_str = row["Total Revenue ($)"]
+            rev_val = float(rev_str.replace("$", "").replace(",", ""))
+            net_val = rev_val - total_cost
+            net_str = f"${net_val:,.2f}" if net_val >= 0 else f"(${ abs(net_val):,.2f})"
+            sc_data.append([row["Patient Share (%)"], rev_str, net_str])
+        sc_table = Table(sc_data, colWidths=[2.2 * inch, 2.2 * inch, 1.8 * inch])
+        sc_table.setStyle(table_style_base())
+        story.append(sc_table)
+        story.append(Spacer(1, 12))
+
+    # ── Disclaimer ────────────────────────────
+    story.append(hr())
+    story.append(Paragraph(
+        "Disclaimer: This report was generated by SPARC (Sustainability Projection and "
+        "Revenue Calculator) using publicly available fee schedule data from Medicaid, "
+        "Medicare, Healthy Blue, Trillium, and Aetna under the Transparency in Coverage "
+        "(TiC) federal regulation. Projections are estimates based on user-entered inputs "
+        "and modeled assumptions. Actual reimbursement amounts will vary. This report "
+        "should not be used as a substitute for professional financial or legal advice.",
+        S["caption"]
+    ))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.read()
 
 
 # ─────────────────────────────────────────────
@@ -579,7 +844,6 @@ with tab_main:
                 gid = grp["id"]
                 with st.expander(grp.get("name", "Group"), expanded=False):
 
-                    # Group name
                     nk = group_key(gid, "name")
                     st.session_state.setdefault(nk, grp.get("name", ""))
                     st.text_input(
@@ -588,7 +852,6 @@ with tab_main:
                         on_change=_make_group_name_callback(gid, nk),
                     )
 
-                    # Population
                     pk = group_key(gid, "population")
                     st.session_state.setdefault(pk, 0)
                     st.number_input(
@@ -599,7 +862,6 @@ with tab_main:
                         help="Number of patients in this service group.",
                     )
 
-                    # CPT codes
                     sk = group_key(gid, "selected_cpts")
                     st.session_state.setdefault(sk, [])
                     st.multiselect(
@@ -609,7 +871,6 @@ with tab_main:
                         help="These CPTs will be applied to visits in this group (per-visit).",
                     )
 
-                    # Patient-share slider
                     shk = group_key(gid, "patient_share_pct")
                     st.session_state.setdefault(shk, 0)
                     st.slider(
@@ -620,7 +881,6 @@ with tab_main:
                         help="This percent is applied to each CPT shortfall for this group's patients.",
                     )
 
-                    # Payer mix
                     st.markdown("Payer mix for this group (must sum to 100%)")
                     payer_vals = []
                     for payer in INSURERS:
@@ -641,7 +901,6 @@ with tab_main:
                     elif abs(payer_total - 100.0) > 1e-6:
                         st.warning(f"Payer mix sums to {payer_total:.2f}%. Please make it sum to 100%.")
 
-                    # Remove group
                     if st.button("Remove this group", key=group_key(gid, "remove")):
                         st.session_state["service_groups"] = [
                             g for g in st.session_state["service_groups"] if g["id"] != gid
@@ -672,7 +931,6 @@ with tab_main:
         else:
             st.markdown("### Advanced Cost Inputs")
 
-            # ── Fixed costs ────────────────────
             st.markdown("#### Fixed costs (subscriptions, maintenance, IT, rent, etc.)")
             st.session_state.setdefault("fixed_items", [])
             st.session_state.setdefault("fixed_new_name", "")
@@ -707,7 +965,6 @@ with tab_main:
             st.write(f"Fixed costs total: **${fixed_total:,.2f}**")
             st.markdown("---")
 
-            # ── Provider payroll ───────────────
             st.markdown("#### Provider payroll")
             pc1, pc2, pc3, pc4 = st.columns(4)
             with pc1:
@@ -724,7 +981,6 @@ with tab_main:
             st.write(f"Provider payroll total: **${provider_total:,.2f}** (${annual_per_provider:,.2f} per provider / year)")
             st.markdown("---")
 
-            # ── Miscellaneous costs ────────────
             st.markdown("#### Miscellaneous costs")
             st.session_state.setdefault("misc_items", [])
             st.session_state.setdefault("misc_new_name", "")
@@ -754,7 +1010,6 @@ with tab_main:
             st.write(f"Misc costs total: **${misc_total:,.2f}**")
             st.markdown("---")
 
-            # ── Advanced cost total ────────────
             net_cost_advanced = fixed_total + provider_total + misc_total
             st.markdown(f"## Total Cost = **${net_cost_advanced:,.2f}**")
             st.session_state["net_cost_advanced"] = float(net_cost_advanced)
@@ -765,7 +1020,6 @@ with tab_main:
     st.markdown("---")
     st.markdown("# Model Outputs")
 
-    # Resolve total cost
     if cost_mode == "Advanced":
         total_cost = float(st.session_state.get("net_cost_advanced", 0.0))
     else:
@@ -774,6 +1028,9 @@ with tab_main:
     display_map = cpt_display_to_code(reim_df)
     grand_revenue = 0.0
     grand_population = 0
+    group_rows = []
+    scenario_rows_for_pdf = []
+    payer_mix_for_pdf = {p: safe_float(f"pct_{p}") for p in INSURERS}
 
     # ── Simple population outputs ──────────────
     if pop_mode == "Simple":
@@ -800,8 +1057,10 @@ with tab_main:
                 st.write(f"- Total Cost: **${total_cost:,.2f}**")
                 st.markdown(f"## Final Net profit: **${grand_revenue - total_cost:,.2f}**")
 
+                sc_df = build_scenario_table(selected_cpts, payer_probs, population, reim_df)
                 st.markdown("#### Quick scenario comparison (patient pays X% of shortfall)")
-                st.table(build_scenario_table(selected_cpts, payer_probs, population, reim_df))
+                st.table(sc_df)
+                scenario_rows_for_pdf = sc_df.reset_index().to_dict("records")
 
     # ── Advanced population outputs ────────────
     else:
@@ -809,7 +1068,6 @@ with tab_main:
         if not groups:
             st.info("No service groups configured in Advanced Patient Population. Add groups in the Advanced panel.")
         else:
-            group_rows = []
             for grp in groups:
                 gid = grp["id"]
                 gname = st.session_state.get(group_key(gid, "name"), grp.get("name", "Group"))
@@ -822,14 +1080,11 @@ with tab_main:
                 if pop_val > 0 and sel_cpts and payer_pct_arr.sum() > 0:
                     probs = payer_pct_arr / payer_pct_arr.sum()
                     grp_revenue = per_patient_revenue(sel_cpts, probs, share_frac, reim_df) * pop_val
+                    payer_mix_for_pdf = {p: float(payer_pct_arr[i]) for i, p in enumerate(INSURERS)}
                 else:
                     grp_revenue = 0.0
 
-                group_rows.append({
-                    "name": gname,
-                    "population": pop_val,
-                    "total_revenue": grp_revenue,
-                })
+                group_rows.append({"name": gname, "population": pop_val, "total_revenue": grp_revenue})
                 grand_revenue += grp_revenue
                 grand_population += pop_val
 
@@ -859,6 +1114,55 @@ with tab_main:
             st.write(f"- Grand total reimbursement (all groups): **${grand_revenue:,.2f}**")
             st.write(f"- Total Cost (clinic): **${total_cost:,.2f}**")
             st.markdown(f"## Final Net profit: **${grand_revenue - total_cost:,.2f}**")
+
+    # ──────────────────────────────────────────
+    # GRANT REPORT EXPORT
+    # ──────────────────────────────────────────
+    if grand_revenue > 0 or total_cost > 0:
+        st.markdown("---")
+        st.markdown("### 📄 Grant Summary Report")
+        st.caption(
+            "Download a formatted PDF you can attach to grant applications. "
+            "It frames your projected funding gap in grant-ready language, "
+            "includes a full cost breakdown, payer mix, and scenario analysis."
+        )
+
+        clinic_name = st.text_input(
+            "Organization name (optional — appears at the top of the report):",
+            placeholder="e.g. Blue Ridge Rural Health Clinic",
+            key="clinic_name_for_pdf",
+        )
+
+        fixed_items_for_pdf  = st.session_state.get("fixed_items", [])
+        misc_items_for_pdf   = st.session_state.get("misc_items", [])
+        provider_info_for_pdf = {
+            "num":    safe_int("adv_num_providers"),
+            "hours":  safe_float("adv_hours_week"),
+            "weeks":  safe_int("adv_weeks_year"),
+            "hourly": safe_float("adv_hourly_pay"),
+        }
+
+        pdf_bytes = generate_grant_pdf(
+            clinic_name=clinic_name,
+            pop_mode=pop_mode,
+            cost_mode=cost_mode,
+            grand_revenue=grand_revenue,
+            total_cost=total_cost,
+            grand_population=grand_population,
+            payer_mix=payer_mix_for_pdf,
+            group_rows=group_rows,
+            scenario_rows=scenario_rows_for_pdf,
+            fixed_items=fixed_items_for_pdf,
+            misc_items=misc_items_for_pdf,
+            provider_info=provider_info_for_pdf,
+        )
+
+        st.download_button(
+            label="Download Grant Summary Report (PDF)",
+            data=pdf_bytes,
+            file_name="SPARC_Grant_Summary.pdf",
+            mime="application/pdf",
+        )
 
 
 # ─────────────────────────────────────────────
